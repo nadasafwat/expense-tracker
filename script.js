@@ -2,40 +2,19 @@
    1. GLOBAL STATE & CONFIG
    ========================================= */
 const STORAGE_KEY = 'expense_manager_data';
-
 let currentUser = null;
-let currentViewDate = {
-    year: new Date().getFullYear(),
-    month: new Date().getMonth() + 1
-};
+let currentViewDate = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 
 /* =========================================
-   2. DATA LAYER (LocalStorage & JSON File)
+   2. DATA LAYER (LocalStorage)
    ========================================= */
-let allUsersData = [];
-
-async function loadUsersFromFile() {
-    try {
-        const response = await fetch('users.json');
-        if (response.ok) {
-            allUsersData = await response.json();
-            saveAllUsers(allUsersData);
-            console.log('Users loaded from users.json');
-            return true;
-        }
-    } catch (error) {
-        console.log('Could not load users.json, using localStorage');
-        allUsersData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    }
-    return false;
-}
 
 function getAllUsers() {
-    return allUsersData.length > 0 ? allUsersData : JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
 }
 
 function saveAllUsers(users) {
-    allUsersData = users;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
 }
 
@@ -48,30 +27,37 @@ function updateCurrentUserInStorage() {
     }
 }
 
+/* =========================================*/
+
 /* =========================================
    3. AUTHENTICATION
    ========================================= */
+
 function switchAuthTab(tab) {
     const loginForm = document.getElementById('login-form');
     const regForm = document.getElementById('register-form');
     const btns = document.querySelectorAll('.tab-btn');
 
-    const isLogin = tab === 'login';
-
-    loginForm.classList.toggle('hidden', !isLogin);
-    regForm.classList.toggle('hidden', isLogin);
-
-    btns[0].classList.toggle('active', isLogin);
-    btns[1].classList.toggle('active', !isLogin);
+    if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        regForm.classList.add('hidden');
+        btns[0].classList.add('active');
+        btns[1].classList.remove('active');
+    } else {
+        loginForm.classList.add('hidden');
+        regForm.classList.remove('hidden');
+        btns[0].classList.remove('active');
+        btns[1].classList.add('active');
+    }
 }
 
-/* ---------- REGISTER ---------- */
+// REGISTER
 document.getElementById('register-form').addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const name = document.getElementById('reg-name').value.trim();
-    const pass = document.getElementById('reg-pass').value.trim();
-    const income = parseFloat(document.getElementById('reg-income').value);
+    const name = reg-name.value.trim();
+    const pass = reg-pass.value.trim();
+    const income = parseFloat(reg-income.value);
 
     const users = getAllUsers();
     if (users.some(u => u.Name === name)) {
@@ -80,45 +66,37 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
     }
 
     const monthKey = getMonthKey(currentViewDate.year, currentViewDate.month);
+    const incomeMap = { [monthKey]: income };
 
-    const newUser = {
+    users.push({
         Name: name,
         Password: pass,
-        Monthly_Income: { [monthKey]: income },
+        Monthly_Income: incomeMap,
         expenses: [],
         Total_Expenses: 0,
         Remaining_Balance: income
-    };
+    });
 
-    users.push(newUser);
     saveAllUsers(users);
-
-    showToast('Registration successful! Please login.');
+    showToast('Registration successful!');
     switchAuthTab('login');
     e.target.reset();
 });
 
-/* ---------- LOGIN ---------- */
+// LOGIN
 document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const name = document.getElementById('login-name').value.trim();
-    const pass = document.getElementById('login-pass').value.trim();
+    const name = login-name.value.trim();
+    const pass = login-pass.value.trim();
 
-    const user = getAllUsers().find(
-        u => u.Name === name && u.Password === pass
-    );
-
-    if (!user) {
-        showToast('Invalid credentials', 'error');
-        return;
-    }
+    const user = getAllUsers().find(u => u.Name === name && u.Password === pass);
+    if (!user) return showToast('Invalid credentials', 'error');
 
     currentUser = user;
     sessionStorage.setItem('current_session_user', name);
     initDashboard();
 });
-
 function logout() {
     currentUser = null;
     sessionStorage.removeItem('current_session_user');
@@ -418,9 +396,7 @@ function exportCSV() {
 /* =========================================
    8. AUTO LOGIN
    ========================================= */
-window.onload = async () => {
-    await loadUsersFromFile();
-    
+window.onload = () => {
     const name = sessionStorage.getItem('current_session_user');
     if (!name) return;
 
