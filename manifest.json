@@ -1,16 +1,16 @@
 {
-    "name": "Personal Expense Manager",
-    "short_name": "Expenses",
-    "start_url": "index. html",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#4CAF50",
- "icons":[
+  "name": "Expense Tracker",
+  "short_name": "Expenses",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "icons": [
     {
-        "src": "icons/icon-192.png",
-        "sizes": "192x192",
-        "type": "image/png"
-       
-    }     
-    ]
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
 }
