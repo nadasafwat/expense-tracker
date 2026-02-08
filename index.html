@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+ 
+</head>
+<body>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <section id="auth-section" class="active-section">
+        <div class="card auth-card">
+            <h1>💰Expense Tracker</h1>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchAuthTab('login')">Login</button>
+                <button class="tab-btn" onclick="switchAuthTab('register')">Register</button>
+            </div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="login-name" required placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-pass" required placeholder="Enter password">
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+
+            <form id="register-form" class="hidden">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="reg-name" required placeholder="Unique username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-pass" required placeholder="Create password">
+                </div>
+                <div class="form-group">
+                    <label>Initial Monthly Income (EGP)</label>
+                    <input type="number" id="reg-income" min="1" required placeholder="e.g. 5000">
+                </div>
+                <button type="submit" class="btn-primary">Register</button>
+            </form>
+        </div>
+    </section>
+
+    <section id="dashboard-section" class="hidden">
+        <header>
+            <div class="user-info">
+                <span>Welcome, <b id="display-username">User</b></span>
+                <button onclick="logout()" class="btn-text">Logout</button>
+            </div>
+        </header>
+
+        <div class="controls-bar">
+            <select id="sel-year"></select>
+            <select id="sel-month"></select>
+            <button onclick="exportCSV()" class="btn-secondary small">📥Export</button>
+        </div>
+
+        <div class="summary-grid">
+            <div class="card summary-card income">
+                <h3>Income</h3>
+                <div class="editable-income">
+                    <span>EGP</span>
+                    <input type="number" id="current-income-input" onchange="updateIncome()">
+                </div>
+            </div>
+            <div class="card summary-card expense">
+                <h3>Expenses</h3>
+                <p>EGP <span id="total-expenses-display">0</span></p>
+            </div>
+            <div class="card summary-card balance">
+                <h3>Balance</h3>
+                <p>EGP <span id="remaining-balance-display">0</span></p>
+            </div>
+        </div>
+        <div class="filter-bar">
+            <label for="category-filter">Filter by Category:</label>
+            <select id="category-filter">
+                <option value="all">All</option>
+            </select>
+        </div>
+
+        <div id="expense-list-container">
+            </div>
+
+        <button class="fab" onclick="openModal()">+</button>
+    </section>
+
+    <div id="expense-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modal-title">Add Expense</h2>
+            <form id="expense-form">
+                <input type="hidden" id="edit-index"> <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="exp-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Amount (EGP)</label>
+                    <input type="number" id="exp-amount" min="1" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="exp-category" placeholder=": طعام، مواصلات" required>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js">
+        if ("serviceWorker" in navigator) 
+    {
+        window.addEventListener("load", () => {
+        navigator.serviceWorker
+        .register("service-worker.js")
+        .then(() => console.log("Service Worker Registered"))
+        .catch(err => console.error("Service Worker Error", err));
+        });
+    }
+    </script>
+</body>
+</html>
