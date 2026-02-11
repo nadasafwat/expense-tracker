@@ -55,9 +55,9 @@ function switchAuthTab(tab) {
 document.getElementById('register-form').addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const name = reg-name.value.trim();
-    const pass = reg-pass.value.trim();
-    const income = parseFloat(reg-income.value);
+    const name = document.getElementById('reg-name').value.trim();
+    const pass = document.getElementById('reg-pass').value.trim();
+    const income = parseFloat(document.getElementById('reg-income').value);
 
     const users = getAllUsers();
     if (users.some(u => u.Name === name)) {
@@ -87,8 +87,8 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
 document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const name = login-name.value.trim();
-    const pass = login-pass.value.trim();
+    const name = document.getElementById('login-name').value.trim();
+    const pass = document.getElementById('login-pass').value.trim();
 
     const user = getAllUsers().find(u => u.Name === name && u.Password === pass);
     if (!user) return showToast('Invalid credentials', 'error');
