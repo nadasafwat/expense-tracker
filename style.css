@@ -86,3 +86,45 @@ header { display: flex; justify-content: space-between; align-items: center; mar
     padding: 6px 10px;
     border-radius: 8px;
 }
+
+/* Category Summary Card */
+.category-summary {
+    background: var(--surface);
+    padding: 15px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    text-align: center;
+    margin-bottom: 20px;
+    border-left: 5px solid var(--primary);
+    animation: slideUp 0.3s ease;
+}
+
+.category-summary h3 {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+
+.category-summary p {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+/* CSV Import Styles */
+#csv-file-input {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: 2px dashed var(--primary);
+    border-radius: 8px;
+    background: #f8f9fb;
+    cursor: pointer;
+    margin: 10px 0;
+    transition: 0.2s;
+}
+
+#csv-file-input:hover {
+    background: #f0f2f8;
+    border-color: var(--primary-dark);
+}

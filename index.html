@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
- 
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
@@ -63,6 +63,7 @@
             <select id="sel-year"></select>
             <select id="sel-month"></select>
             <button onclick="exportCSV()" class="btn-secondary small">📥Export</button>
+            <button onclick="openCSVImportModal()" class="btn-secondary small">⬆️Import</button>
         </div>
 
         <div class="summary-grid">
@@ -89,11 +90,32 @@
             </select>
         </div>
 
-        <div id="expense-list-container">
-            </div>
+        <div id="category-summary-card" class="card summary-card expense">
+            <h3>Total</h3>
+            <p>EGP <span id="category-summary-amount">0</span></p>
+        </div>
+
+        <div id="expense-list-container"></div>
 
         <button class="fab" onclick="openModal()">+</button>
     </section>
+
+    <!-- CSV IMPORT MODAL -->
+    <div id="csv-import-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Import Expenses from CSV</h2>
+            <div class="form-group">
+                <label>Select CSV File:</label>
+                <input type="file" id="csv-file-input" accept=".csv" required>
+                <p class="hint">Expected columns: Date, Amount, Category (optional: Description)</p>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeCSVImportModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="startCSVImport()">Import</button>
+            </div>
+        </div>
+    </div>
 
     <div id="expense-modal" class="modal hidden">
         <div class="modal-content">

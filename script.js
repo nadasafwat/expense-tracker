@@ -208,13 +208,55 @@ function updateCategoryFilter(expenses) {
     });
 }
 
+/**
+ * Calculate the total amount for filtered expenses
+ * @param {Array} expenses - Array of expense objects to sum
+ * @returns {number} Total amount using optimized .reduce() method
+ */
+function calculateCategoryTotal(expenses) {
+    return expenses.reduce((total, expense) => total + expense.Amount, 0);
+}
+
+/**
+ * Update the category summary card with total and title
+ * @param {string} categoryName - The selected category name
+ * @param {number} total - The calculated total for the category
+ */
+function updateCategorySummaryCard(categoryName, total) {
+    const summaryCard = document.getElementById('category-summary-card');
+    const titleEl = document.getElementById('category-summary-title');
+    const amountEl = document.getElementById('category-summary-amount');
+
+    // Check if elements exist before trying to modify them
+    if (!summaryCard || !amountEl) {
+        return;
+    }
+
+    if (total === 0) {
+        summaryCard.classList.add('hidden');
+    } else {
+        summaryCard.classList.remove('hidden');
+        if (titleEl) {
+            titleEl.innerText = categoryName === 'all' ? 'Total All Categories' : `Total: ${categoryName}`;
+        }
+        amountEl.innerText = total.toLocaleString();
+    }
+}
+
 function applyCategoryFilter(expenses) {
     const selected = document.getElementById('category-filter').value;
-    renderExpenseList(
-        selected === 'all'
-            ? expenses
-            : expenses.filter(e => e.Category === selected)
-    );
+    const filteredExpenses = selected === 'all'
+        ? expenses
+        : expenses.filter(e => e.Category === selected);
+
+    // Calculate total using optimized .reduce() method
+    const categoryTotal = calculateCategoryTotal(filteredExpenses);
+    
+    // Update the category summary card
+    const displayName = selected === 'all' ? 'all' : selected;
+    updateCategorySummaryCard(displayName, categoryTotal);
+
+    renderExpenseList(filteredExpenses);
 }
 
 document.getElementById('category-filter').addEventListener('change', () => {
@@ -394,8 +436,240 @@ function exportCSV() {
 }
 
 /* =========================================
-   8. AUTO LOGIN
+   8. CSV IMPORT
    ========================================= */
+
+/**
+ * Validate a single expense row from CSV
+ * @param {Object} row - CSV row object
+ * @param {number} rowIndex - Row number for error reporting
+ * @returns {Object} {isValid: boolean, expense: Object, error: string}
+ */
+function validateExpenseRow(row, rowIndex) {
+    // Check for required fields
+    if (!row.Date || !row.Amount || !row.Category) {
+        return {
+            isValid: false,
+            error: `Row ${rowIndex}: Missing required field (Date, Amount, or Category)`
+        };
+    }
+
+    // Validate and parse Date (YYYY-MM-DD format)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(row.Date.trim())) {
+        return {
+            isValid: false,
+            error: `Row ${rowIndex}: Invalid date format. Expected YYYY-MM-DD, got "${row.Date}"`
+        };
+    }
+
+    // Validate date is real
+    const parsedDate = new Date(row.Date);
+    if (isNaN(parsedDate.getTime())) {
+        return {
+            isValid: false,
+            error: `Row ${rowIndex}: Invalid date "${row.Date}"`
+        };
+    }
+
+    // Validate and parse Amount (positive number)
+    const amount = parseFloat(row.Amount);
+    if (isNaN(amount) || amount <= 0) {
+        return {
+            isValid: false,
+            error: `Row ${rowIndex}: Amount must be a positive number, got "${row.Amount}"`
+        };
+    }
+
+    // Validate Category (non-empty string)
+    const category = row.Category.trim();
+    if (!category || category.length === 0) {
+        return {
+            isValid: false,
+            error: `Row ${rowIndex}: Category cannot be empty`
+        };
+    }
+
+    return {
+        isValid: true,
+        expense: {
+            Date: row.Date,
+            Amount: amount,
+            Category: category,
+            Description: row.Description ? row.Description.trim() : ''
+        },
+        error: null
+    };
+}
+
+/**
+ * Parse CSV file and validate all rows
+ * @param {string} csvContent - Raw CSV content
+ * @returns {Object} {validExpenses: Array, errors: Array, summary: Object}
+ */
+function parseCSVData(csvContent) {
+    const result = Papa.parse(csvContent, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: ','
+    });
+
+    if (result.errors.length > 0) {
+        return {
+            validExpenses: [],
+            errors: result.errors.map(e => `Parse error: ${e.message}`),
+            summary: { total: 0, valid: 0, invalid: 0 }
+        };
+    }
+
+    const validExpenses = [];
+    const errors = [];
+    const rows = result.data;
+
+    rows.forEach((row, index) => {
+        // Skip completely empty rows
+        if (!row.Date && !row.Amount && !row.Category) {
+            return;
+        }
+
+        const validation = validateExpenseRow(row, index + 2); // +2 because index 0 is header, 1-based
+        if (validation.isValid) {
+            validExpenses.push(validation.expense);
+        } else {
+            errors.push(validation.error);
+        }
+    });
+
+    return {
+        validExpenses,
+        errors,
+        summary: {
+            total: rows.length,
+            valid: validExpenses.length,
+            invalid: errors.length
+        }
+    };
+}
+
+/**
+ * Merge imported expenses with existing data
+ * @param {Array} newExpenses - Expenses to import
+ * @returns {Object} {imported: number, duplicates: number, total: number}
+ */
+function importExpenses(newExpenses) {
+    let importedCount = 0;
+    let duplicateCount = 0;
+
+    newExpenses.forEach(newExp => {
+        // Check for duplicates
+        const isDuplicate = currentUser.expenses.some(exp =>
+            exp.Date == newExp.Date &&
+            exp.Amount == newExp.Amount &&
+            exp.Category == newExp.Category
+        );
+
+        if (!isDuplicate) {
+            currentUser.expenses.push(newExp);
+            importedCount++;
+        } else {
+            duplicateCount++;
+        }
+    });
+
+    // Save to storage and refresh UI
+    updateCurrentUserInStorage();
+    renderDashboardData();
+
+    return {
+        imported: importedCount,
+        duplicates: duplicateCount,
+        total: importedCount + duplicateCount
+    };
+}
+
+/**
+ * Open CSV import modal
+ */
+function openCSVImportModal() {
+    const modal = document.getElementById('csv-import-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('csv-file-input').value = '';
+}
+
+/**
+ * Close CSV import modal
+ */
+function closeCSVImportModal() {
+    document.getElementById('csv-import-modal').classList.add('hidden');
+}
+
+/**
+ * Start CSV import process
+ */
+function startCSVImport() {
+    const fileInput = document.getElementById('csv-file-input');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showToast('Please select a file', 'error');
+        return;
+    }
+
+    if (!file.name.endsWith('.csv')) {
+        showToast('Please select a CSV file', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            const csvContent = e.target.result;
+            const parseResult = parseCSVData(csvContent);
+
+            // Check for validation errors
+            if (parseResult.errors.length > 0) {
+                let errorMessage = parseResult.errors.slice(0, 3).join(' | ');
+                if (parseResult.errors.length > 3) {
+                    errorMessage += ` | ... and ${parseResult.errors.length - 3} more errors`;
+                }
+                showToast(`Validation errors: ${errorMessage}`, 'error');
+                return;
+            }
+
+            // No valid data to import
+            if (parseResult.validExpenses.length === 0) {
+                showToast('No valid records found in CSV', 'error');
+                return;
+            }
+
+            // Import the data
+            const result = importExpenses(parseResult.validExpenses);
+
+            // Close modal and show success
+            closeCSVImportModal();
+
+            if (result.imported > 0) {
+                let message = `✓ Imported ${result.imported} expense${result.imported !== 1 ? 's' : ''}`;
+                if (result.duplicates > 0) {
+                    message += ` (${result.duplicates} duplicate${result.duplicates !== 1 ? 's' : ''} skipped)`;
+                }
+                showToast(message);
+            } else {
+                showToast(`All ${result.total} rows were duplicates`, 'error');
+            }
+
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        }
+    };
+
+    reader.onerror = () => {
+        showToast('Error reading file', 'error');
+    };
+
+    reader.readAsText(file);
+}
 window.onload = () => {
     const name = sessionStorage.getItem('current_session_user');
     if (!name) return;
