@@ -43,8 +43,12 @@
                     <input type="password" id="reg-pass" required placeholder="Create password">
                 </div>
                 <div class="form-group">
-                    <label>Initial Monthly Income (EGP)</label>
-                    <input type="number" id="reg-income" min="1" required placeholder="e.g. 5000">
+                    <label>Initial Monthly Cash Income (EGP)</label>
+                    <input type="number" id="reg-income-cash" min="0" required placeholder="e.g. 3000">
+                </div>
+                <div class="form-group">
+                    <label>Initial Monthly Card Income (EGP)</label>
+                    <input type="number" id="reg-income-card" min="0" required placeholder="e.g. 2000">
                 </div>
                 <button type="submit" class="btn-primary">Register</button>
             </form>
@@ -69,10 +73,17 @@
         <div class="summary-grid">
             <div class="card summary-card income">
                 <h3>Income</h3>
-                <div class="editable-income">
-                    <span>EGP</span>
-                    <input type="number" id="current-income-input" onchange="updateIncome()">
+                <div class="editable-income income-inputs">
+                    <div>
+                        <span>Cash</span>
+                        <input type="number" id="current-income-cash" onchange="updateIncome()" min="0">
+                    </div>
+                    <div>
+                        <span>Card</span>
+                        <input type="number" id="current-income-card" onchange="updateIncome()" min="0">
+                    </div>
                 </div>
+                <p>Total: EGP <span id="total-income-display">0</span></p>
             </div>
             <div class="card summary-card expense">
                 <h3>Expenses</h3>
@@ -80,18 +91,18 @@
             </div>
             <div class="card summary-card balance">
                 <h3>Balance</h3>
-                <p>EGP <span id="remaining-balance-display">0</span></p>
+                <p>Cash: EGP <span id="cash-balance-display">0</span></p>
+                <p>Card: EGP <span id="card-balance-display">0</span></p>
+                <p>Total: EGP <span id="remaining-balance-display">0</span></p>
             </div>
         </div>
         <div class="filter-bar">
-            <label for="category-filter">Filter by Category:</label>
-            <select id="category-filter">
-                <option value="all">All</option>
-            </select>
+            <label>Filter by Category:</label>
+            <div id="category-filter-chips" class="filter-chips"></div>
         </div>
 
-        <div id="category-summary-card" class="card summary-card expense">
-            <h3>Total</h3>
+        <div id="category-summary-card" class="card summary-card expense hidden">
+            <h3 id="category-summary-title">Total</h3>
             <p>EGP <span id="category-summary-amount">0</span></p>
         </div>
 
@@ -132,6 +143,14 @@
                 <div class="form-group">
                     <label>Category</label>
                     <input type="text" id="exp-category" placeholder=": طعام، مواصلات" required>
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select id="exp-payment-method" required>
+                        <option value="">Select</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                    </select>
                 </div>
                 
                 <div class="modal-actions">

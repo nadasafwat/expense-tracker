@@ -17,19 +17,21 @@ The app helps users track their daily expenses, manage monthly income, and analy
 
 ### 💰 Income Management
 
-* Set **monthly income** per user
-* Income is stored **per month & year**
-* Automatically recalculates balance when income changes
+* Set **monthly income** per user with separate **cash** and **card** streams
+* Total monthly income is calculated live from both sources
+* Income is stored **per month & year** and amounts are tracked independently
+* Automatically recalculates separate cash/card balances and overall balance when income or expenses change
 
 ### 🧾 Expense Management
 
 * Add, edit, and delete expenses
 * Each expense includes:
 
-  * Date
+  * Date (defaults to today when adding a new entry)
   * Amount
   * Category
-* Prevents duplicate expense entries
+  * **Payment Method** (Cash or Card) – amount deducted from the corresponding balance
+* Prevents duplicate expense entries (considering payment method)
 * Expenses are grouped by **date** with daily totals
 
 ### 📊 Dashboard & Analytics
@@ -43,9 +45,10 @@ The app helps users track their daily expenses, manage monthly income, and analy
 
 ### 🗂 Category Filter
 
-* Dynamic **category dropdown**
+* Dynamic **category dropdown** with **multi‑select** support
+* Users can choose multiple categories at once (Ctrl/Shift-click)
 * Categories update automatically based on the selected month
-* Filter expenses by category or view all
+* Filter expenses by one or more categories, or view all
 
 ### 📤 Export Data
 

@@ -57,7 +57,14 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
 
     const name = document.getElementById('reg-name').value.trim();
     const pass = document.getElementById('reg-pass').value.trim();
-    const income = parseFloat(document.getElementById('reg-income').value);
+    // read two separate income fields (cash + card)
+    const cashIncome = parseFloat(document.getElementById('reg-income-cash').value) || 0;
+    const cardIncome = parseFloat(document.getElementById('reg-income-card').value) || 0;
+
+    if (cashIncome < 0 || cardIncome < 0) {
+        showToast('Income values cannot be negative', 'error');
+        return;
+    }
 
     const users = getAllUsers();
     if (users.some(u => u.Name === name)) {
@@ -66,7 +73,8 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
     }
 
     const monthKey = getMonthKey(currentViewDate.year, currentViewDate.month);
-    const incomeMap = { [monthKey]: income };
+    // store as object so we can track separately later
+    const incomeMap = { [monthKey]: { cash: cashIncome, card: cardIncome } };
 
     users.push({
         Name: name,
@@ -74,7 +82,7 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
         Monthly_Income: incomeMap,
         expenses: [],
         Total_Expenses: 0,
-        Remaining_Balance: income
+        Remaining_Balance: cashIncome + cardIncome
     });
 
     saveAllUsers(users);
@@ -151,15 +159,16 @@ function populateDateSelectors() {
 
 function updateIncome() {
     const monthKey = getMonthKey(currentViewDate.year, currentViewDate.month);
-    const income = parseFloat(document.getElementById('current-income-input').value);
-    
-    if (income <= 0) {
-        showToast('Income must be positive', 'error');
+    const cash = parseFloat(document.getElementById('current-income-cash').value) || 0;
+    const card = parseFloat(document.getElementById('current-income-card').value) || 0;
+
+    if (cash < 0 || card < 0) {
+        showToast('Income cannot be negative', 'error');
         return;
     }
-    
+
     if (!currentUser.Monthly_Income) currentUser.Monthly_Income = {};
-    currentUser.Monthly_Income[monthKey] = income;
+    currentUser.Monthly_Income[monthKey] = { cash, card };
     updateCurrentUserInStorage();
     renderDashboardData();
 }
@@ -167,8 +176,20 @@ function updateIncome() {
 function renderDashboardData() {
     const monthKey = getMonthKey(currentViewDate.year, currentViewDate.month);
 
-    const monthlyIncome = currentUser.Monthly_Income[monthKey] ?? 0;
-    document.getElementById('current-income-input').value = monthlyIncome;
+    // retrieve income object, handle legacy numeric format
+    let monthlyIncome = currentUser.Monthly_Income[monthKey];
+    if (monthlyIncome == null) {
+        monthlyIncome = { cash: 0, card: 0 };
+    } else if (typeof monthlyIncome === 'number') {
+        // migrate old format to new
+        monthlyIncome = { cash: monthlyIncome, card: 0 };
+        currentUser.Monthly_Income[monthKey] = monthlyIncome;
+        updateCurrentUserInStorage();
+    }
+
+    document.getElementById('current-income-cash').value = monthlyIncome.cash;
+    document.getElementById('current-income-card').value = monthlyIncome.card;
+    document.getElementById('total-income-display').innerText = (monthlyIncome.cash + monthlyIncome.card).toLocaleString();
 
     const monthlyExpenses = currentUser.expenses.filter(exp => {
         const d = new Date(exp.Date);
@@ -176,16 +197,28 @@ function renderDashboardData() {
                d.getMonth() + 1 === currentViewDate.month;
     });
 
-    const totalExpenses = monthlyExpenses.reduce((s, e) => s + e.Amount, 0);
-    const balance = monthlyIncome - totalExpenses;
+    // calculate separate amounts by payment method
+    const cashExpenses = monthlyExpenses
+        .filter(e => (e.PaymentMethod || 'Cash') === 'Cash')
+        .reduce((s, e) => s + e.Amount, 0);
+    const cardExpenses = monthlyExpenses
+        .filter(e => e.PaymentMethod === 'Card')
+        .reduce((s, e) => s + e.Amount, 0);
+    const totalExpenses = cashExpenses + cardExpenses;
+
+    const cashBalance = monthlyIncome.cash - cashExpenses;
+    const cardBalance = monthlyIncome.card - cardExpenses;
+    const totalBalance = cashBalance + cardBalance;
 
     document.getElementById('total-expenses-display').innerText = totalExpenses.toLocaleString();
+    document.getElementById('cash-balance-display').innerText = cashBalance.toLocaleString();
+    document.getElementById('card-balance-display').innerText = cardBalance.toLocaleString();
     const balEl = document.getElementById('remaining-balance-display');
-    balEl.innerText = balance.toLocaleString();
-    balEl.style.color = balance < 0 ? 'var(--danger)' : 'var(--text)';
+    balEl.innerText = totalBalance.toLocaleString();
+    balEl.style.color = totalBalance < 0 ? 'var(--danger)' : 'var(--text)';
 
     currentUser.Total_Expenses = totalExpenses;
-    currentUser.Remaining_Balance = balance;
+    currentUser.Remaining_Balance = totalBalance;
     updateCurrentUserInStorage();
 
     updateCategoryFilter(monthlyExpenses);
@@ -194,17 +227,69 @@ function renderDashboardData() {
 
 /* ---------- CATEGORY FILTER ---------- */
 function updateCategoryFilter(expenses) {
-    const select = document.getElementById('category-filter');
-    const currentValue = select.value;
-
-    select.innerHTML = '<option value="all">All</option>';
-
-    getUniqueCategories(expenses).forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat;
-        opt.innerText = cat;
-        if (cat === currentValue) opt.selected = true;
-        select.appendChild(opt);
+    const container = document.getElementById('category-filter-chips');
+    const categories = getUniqueCategories(expenses);
+    
+    // Get previously selected values to restore
+    const prev = Array.from(container.querySelectorAll('.filter-chip.active'))
+        .map(el => el.dataset.value);
+    
+    container.innerHTML = '';
+    
+    // Add "All" chip
+    const allChip = document.createElement('button');
+    allChip.type = 'button';
+    allChip.className = 'filter-chip';
+    allChip.dataset.value = 'all';
+    allChip.innerText = 'All';
+    if (prev.length === 0 || prev.includes('all')) {
+        allChip.classList.add('active');
+    }
+    allChip.addEventListener('click', (e) => {
+        e.preventDefault();
+        container.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.classList.remove('active');
+        });
+        allChip.classList.add('active');
+        const monthExpenses = currentUser.expenses.filter(exp => {
+            const d = new Date(exp.Date);
+            return d.getFullYear() === currentViewDate.year &&
+                   d.getMonth() + 1 === currentViewDate.month;
+        });
+        applyCategoryFilter(monthExpenses);
+    });
+    container.appendChild(allChip);
+    
+    // Add category chips
+    categories.forEach(cat => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip';
+        chip.dataset.value = cat;
+        chip.innerText = cat;
+        if (prev.includes(cat)) {
+            chip.classList.add('active');
+            // remove all active if any category is selected
+            allChip.classList.remove('active');
+        }
+        chip.addEventListener('click', (e) => {
+            e.preventDefault();
+            chip.classList.toggle('active');
+            // if all chips are deselected, activate "All"
+            const activeChips = container.querySelectorAll('.filter-chip.active:not([data-value="all"])');
+            if (activeChips.length === 0) {
+                allChip.classList.add('active');
+            } else {
+                allChip.classList.remove('active');
+            }
+            const monthExpenses = currentUser.expenses.filter(exp => {
+                const d = new Date(exp.Date);
+                return d.getFullYear() === currentViewDate.year &&
+                       d.getMonth() + 1 === currentViewDate.month;
+            });
+            applyCategoryFilter(monthExpenses);
+        });
+        container.appendChild(chip);
     });
 }
 
@@ -244,16 +329,22 @@ function updateCategorySummaryCard(categoryName, total) {
 }
 
 function applyCategoryFilter(expenses) {
-    const selected = document.getElementById('category-filter').value;
-    const filteredExpenses = selected === 'all'
-        ? expenses
-        : expenses.filter(e => e.Category === selected);
+    const container = document.getElementById('category-filter-chips');
+    const selected = Array.from(container.querySelectorAll('.filter-chip.active'))
+        .map(chip => chip.dataset.value);
+
+    let filteredExpenses;
+    if (selected.length === 0 || selected.includes('all')) {
+        filteredExpenses = expenses;
+    } else {
+        filteredExpenses = expenses.filter(e => selected.includes(e.Category));
+    }
 
     // Calculate total using optimized .reduce() method
     const categoryTotal = calculateCategoryTotal(filteredExpenses);
     
     // Update the category summary card
-    const displayName = selected === 'all' ? 'all' : selected;
+    const displayName = (selected.length === 0 || selected.includes('all')) ? 'all' : selected.join(', ');
     updateCategorySummaryCard(displayName, categoryTotal);
 
     renderExpenseList(filteredExpenses);
@@ -301,11 +392,12 @@ function renderExpenseList(expenses) {
             <div class="day-content">
                 ${items.map(exp => {
                     const idx = currentUser.expenses.indexOf(exp);
+                    const method = exp.PaymentMethod || 'Cash';
                     return `
                     <div class="expense-item">
                         <div class="expense-info">
                             <h4>${exp.Category}</h4>
-                            <small>${exp.Amount} EGP</small>
+                            <small>${exp.Amount} EGP · ${method}</small>
                         </div>
                         <div class="expense-actions">
                             <button onclick="editExpense(${idx})">✏️</button>
@@ -334,11 +426,14 @@ function openModal(index = null) {
         document.getElementById('exp-date').value = exp.Date;
         document.getElementById('exp-amount').value = exp.Amount;
         document.getElementById('exp-category').value = exp.Category;
+        document.getElementById('exp-payment-method').value = exp.PaymentMethod || 'Cash';
     } else {
         document.getElementById('modal-title').innerText = 'Add Expense';
         expenseForm.reset();
-        document.getElementById('exp-date').value =
-            `${currentViewDate.year}-${String(currentViewDate.month).padStart(2,'0')}-01`;
+        // default to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('exp-date').value = today;
+        document.getElementById('exp-payment-method').value = '';
     }
 }
 
@@ -352,16 +447,22 @@ expenseForm.addEventListener('submit', (e) => {
     const date = document.getElementById('exp-date').value;
     const amount = parseFloat(document.getElementById('exp-amount').value);
     const category = document.getElementById('exp-category').value.trim();
+    const paymentMethod = document.getElementById('exp-payment-method').value;
     const editIdx = document.getElementById('edit-index').value;
 
     if (amount <= 0) {
         showToast('Amount must be positive', 'error');
         return;
     }
+    if (!paymentMethod) {
+        showToast('Select a payment method', 'error');
+        return;
+    }
 
     const isDuplicate = currentUser.expenses.some((e, i) =>
         (editIdx === '' || i != editIdx) &&
-        e.Date === date && e.Amount === amount && e.Category === category
+        e.Date === date && e.Amount === amount && e.Category === category &&
+        (e.PaymentMethod || 'Cash') === paymentMethod
     );
 
     if (isDuplicate) {
@@ -369,11 +470,13 @@ expenseForm.addEventListener('submit', (e) => {
         return;
     }
 
+    const expenseObj = { Date: date, Amount: amount, Category: category, PaymentMethod: paymentMethod };
+
     if (editIdx !== '') {
-        currentUser.expenses[editIdx] = { Date: date, Amount: amount, Category: category };
+        currentUser.expenses[editIdx] = expenseObj;
         showToast('Expense updated');
     } else {
-        currentUser.expenses.push({ Date: date, Amount: amount, Category: category });
+        currentUser.expenses.push(expenseObj);
         showToast('Expense added');
     }
 
@@ -421,10 +524,11 @@ function exportCSV() {
     }
 
     const rows = [
-        'Date,Amount,Category,Month,Year',
+        'Date,Amount,Category,PaymentMethod,Month,Year',
         ...currentUser.expenses.map(e => {
             const d = new Date(e.Date);
-            return `${e.Date},${e.Amount},${e.Category},${d.getMonth()+1},${d.getFullYear()}`;
+            const method = e.PaymentMethod || 'Cash';
+            return `${e.Date},${e.Amount},${e.Category},${method},${d.getMonth()+1},${d.getFullYear()}`;
         })
     ];
 
@@ -490,13 +594,28 @@ function validateExpenseRow(row, rowIndex) {
         };
     }
 
+    // optional payment method
+    let paymentMethod = 'Cash';
+    if (row.PaymentMethod) {
+        const pm = row.PaymentMethod.trim();
+        if (pm === 'Card' || pm === 'Cash') {
+            paymentMethod = pm;
+        } else {
+            return {
+                isValid: false,
+                error: `Row ${rowIndex}: Invalid payment method "${row.PaymentMethod}"`
+            };
+        }
+    }
+
     return {
         isValid: true,
         expense: {
             Date: row.Date,
             Amount: amount,
             Category: category,
-            Description: row.Description ? row.Description.trim() : ''
+            Description: row.Description ? row.Description.trim() : '',
+            PaymentMethod: paymentMethod
         },
         error: null
     };
@@ -565,7 +684,8 @@ function importExpenses(newExpenses) {
         const isDuplicate = currentUser.expenses.some(exp =>
             exp.Date == newExp.Date &&
             exp.Amount == newExp.Amount &&
-            exp.Category == newExp.Category
+            exp.Category == newExp.Category &&
+            ((exp.PaymentMethod || 'Cash') === newExp.PaymentMethod)
         );
 
         if (!isDuplicate) {
