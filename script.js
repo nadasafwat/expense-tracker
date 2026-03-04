@@ -350,15 +350,6 @@ function applyCategoryFilter(expenses) {
     renderExpenseList(filteredExpenses);
 }
 
-document.getElementById('category-filter').addEventListener('change', () => {
-    const monthExpenses = currentUser.expenses.filter(exp => {
-        const d = new Date(exp.Date);
-        return d.getFullYear() === currentViewDate.year &&
-               d.getMonth() + 1 === currentViewDate.month;
-    });
-    applyCategoryFilter(monthExpenses);
-});
-
 /* =========================================
    5. EXPENSE LIST RENDER
    ========================================= */
@@ -400,8 +391,8 @@ function renderExpenseList(expenses) {
                             <small>${exp.Amount} EGP · ${method}</small>
                         </div>
                         <div class="expense-actions">
-                            <button onclick="editExpense(${idx})">✏️</button>
-                            <button onclick="deleteExpense(${idx})">🗑️</button>
+                            <button type="button" onclick="editExpense(${idx})">✏️</button>
+                            <button type="button" onclick="deleteExpense(${idx})">🗑️</button>
                         </div>
                     </div>`;
                 }).join('')}
@@ -418,6 +409,7 @@ const expenseForm = document.getElementById('expense-form');
 
 function openModal(index = null) {
     modal.classList.remove('hidden');
+    expenseForm.reset();
     document.getElementById('edit-index').value = index ?? '';
 
     if (index !== null) {
@@ -429,7 +421,6 @@ function openModal(index = null) {
         document.getElementById('exp-payment-method').value = exp.PaymentMethod || 'Cash';
     } else {
         document.getElementById('modal-title').innerText = 'Add Expense';
-        expenseForm.reset();
         // default to today
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('exp-date').value = today;
@@ -454,13 +445,21 @@ expenseForm.addEventListener('submit', (e) => {
         showToast('Amount must be positive', 'error');
         return;
     }
+    if (!date) {
+        showToast('Please select a date', 'error');
+        return;
+    }
+    if (!category) {
+        showToast('Please enter a category', 'error');
+        return;
+    }
     if (!paymentMethod) {
         showToast('Select a payment method', 'error');
         return;
     }
 
     const isDuplicate = currentUser.expenses.some((e, i) =>
-        (editIdx === '' || i != editIdx) &&
+        (editIdx === '' || parseInt(i) !== parseInt(editIdx)) &&
         e.Date === date && e.Amount === amount && e.Category === category &&
         (e.PaymentMethod || 'Cash') === paymentMethod
     );

@@ -69,7 +69,6 @@
             <button onclick="exportCSV()" class="btn-secondary small">📥Export</button>
             <button onclick="openCSVImportModal()" class="btn-secondary small">⬆️Import</button>
         </div>
-
         <div class="summary-grid">
             <div class="card summary-card income">
                 <h3>Income</h3>
@@ -85,15 +84,21 @@
                 </div>
                 <p>Total: EGP <span id="total-income-display">0</span></p>
             </div>
-            <div class="card summary-card expense">
-                <h3>Expenses</h3>
-                <p>EGP <span id="total-expenses-display">0</span></p>
+            <div class="card summary-card balance">
+                <h3>Balance</h3>
+                <p>Total: EGP <span id="remaining-balance-display">0</span></p>
             </div>
             <div class="card summary-card balance">
                 <h3>Balance</h3>
                 <p>Cash: EGP <span id="cash-balance-display">0</span></p>
+            </div>
+            <div class="card summary-card balance">
+                <h3>Balance</h3>
                 <p>Card: EGP <span id="card-balance-display">0</span></p>
-                <p>Total: EGP <span id="remaining-balance-display">0</span></p>
+            </div>
+            <div class="card summary-card expense">
+                <h3>Expenses</h3>
+                <p>EGP <span id="total-expenses-display">0</span></p>
             </div>
         </div>
         <div class="filter-bar">
